@@ -15,7 +15,7 @@ MONTREAL = ('45.4981', '-73.5596')
 url = 'https://api.darksky.net/forecast/%s/%s,%s' % (config.DARK_SKY_KEY, MONTREAL[0], MONTREAL[1])
 
 bot = slackclient.SlackClient(config.SLACK_BOT_TOKEN)
-bot_id = config.SLACK_BOT_ID
+bot_id = None
 
 jar_files = os.path.join(os.path.dirname(__file__), 'jars')
 sutime = SUTime(jars=jar_files)
@@ -180,9 +180,16 @@ def run():
     """Control loop listening to new messages."""
     if bot.rtm_connect(with_team_state=False):
         print('Connected')
+
+        # Obtains the bot ID
+        users = bot.api_call('users.list').get('members')
+        for user in users:
+            if 'name' in user and user.get('name') == 'charlie':
+                global bot_id
+                bot_id = user.get('id')
+
         while True:
             for event in bot.rtm_read():
-                print(event)
                 validate_message(event)
             time.sleep(1)
     else:
