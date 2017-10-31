@@ -61,6 +61,8 @@ def handle_weather_message(message, channel):
                 message = get_weather(now_iso)
             elif len(times[0]['value']) == 10:
                 message = get_weather(times[0]['value'] + 'T' + now.strftime('%H:%M:%S'))
+            elif len(times[0]['value']) == 16:
+                message = get_weather(times[0]['value'] + now.strftime(':%S'))
             else:
                 message = get_weather(times[0]['value'])
 
