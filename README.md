@@ -1,10 +1,10 @@
 # Charlie
-Charlie is a Slack bot that gets weather updates. It uses the Dark Sky API (free 1,000 calls per day). It also uses the Stanford CoreNLP's Temporal Tagger (SUTime) to process time queries. CoreNLP is developed in Java, so a Python port is used here.
+Charlie is a Slack bot that gets weather updates. It uses the Dark Sky API (free 1,000 calls per day) for retrieving weather forecasts. It uses the Stanford CoreNLP's Temporal Tagger (SUTime) to process time queries. CoreNLP is developed in Java, so a Python port is used here. NLTK is used to for non-temporal NLP. It uses Google's Geocoding API to transform locations into coordinates (free 2,500 calls per day).
 
 ## Instructions
 Install the packages
 ```
-sudo pip install requests slackclient sutime dateutil
+sudo pip install requests slackclient sutime dateutil geopy nltk
 ```
 
 Download Java SE (JDK)
@@ -39,10 +39,16 @@ Create a Slack bot
 3. Customize your bot account and copy the API Token
 ```
 
+Log into you Google account and get the Geocoding API key
+```
+https://developers.google.com/maps/documentation/geocoding/start
+```
+
 Create a `config.py` file with the format of `example.config.py` and fill in the API tokens
 ```
 DARK_SKY_KEY = '<put API key here>'
 SLACK_BOT_TOKEN = '<put API key here>'
+GOOGLE_MAPS_KEY = '<put API key here>'
 ```
 
 Run Charlie

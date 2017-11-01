@@ -8,11 +8,15 @@ import os
 import datetime
 import dateutil.parser
 import random
+import nltk
 from sutime import SUTime
+from geopy.geocoders import GoogleV3
 
-MONTREAL = ('45.4981', '-73.5596')
+MONTREAL = ('Montreal, QC, Canada', '45.4981', '-73.5596')
 
-url = 'https://api.darksky.net/forecast/%s/%s,%s' % (config.DARK_SKY_KEY, MONTREAL[0], MONTREAL[1])
+url = 'https://api.darksky.net/forecast/%s/' % config.DARK_SKY_KEY
+
+google = GoogleV3(api_key=config.GOOGLE_MAPS_KEY)
 
 bot = slackclient.SlackClient(config.SLACK_BOT_TOKEN)
 bot_id = None
@@ -49,6 +53,13 @@ def handle_weather_message(message, channel):
         channel (str): Slack channel string
 
     """
+    location = extract_location(message)
+
+    if location:
+        location = convert_location(location)
+    else:
+        location = MONTREAL
+
     now = datetime.datetime.now()
     now_iso = now.isoformat(timespec='seconds')
     times = sutime.parse(message.lower(), reference_date=now_iso)
@@ -58,13 +69,13 @@ def handle_weather_message(message, channel):
 
         if time_type == 'TIME' or time_type == 'DATE':
             if times[0]['value'] == 'PRESENT_REF':
-                message = get_weather(now_iso)
+                message = get_weather(location, now_iso)
             elif len(times[0]['value']) == 10:
-                message = get_weather(times[0]['value'] + 'T' + now.strftime('%H:%M:%S'))
+                message = get_weather(location, times[0]['value'] + 'T' + now.strftime('%H:%M:%S'))
             elif len(times[0]['value']) == 16:
-                message = get_weather(times[0]['value'] + now.strftime(':%S'))
+                message = get_weather(location, times[0]['value'] + now.strftime(':%S'))
             else:
-                message = get_weather(times[0]['value'])
+                message = get_weather(location, times[0]['value'])
 
         elif time_type == 'DURATION':
             new_time = now
@@ -76,7 +87,7 @@ def handle_weather_message(message, channel):
                 else:
                     new_time = new_time + duration
             if new_time != now:
-                message = get_weather(new_time.isoformat(timespec='seconds'))
+                message = get_weather(location, new_time.isoformat(timespec='seconds'))
             else:
                 message = "Bad request (time duration was 0)."
 
@@ -86,6 +97,44 @@ def handle_weather_message(message, channel):
         message = "When?"
 
     send_message(message=message, channel=channel)
+
+
+def extract_location(message):
+    """Extracts the location using NLTK.
+
+    Args:
+        message (str): Message string
+
+    Returns:
+        str: Location string
+
+    """
+    word_tokens = nltk.word_tokenize(message)
+    pos_tagged_tokens = nltk.pos_tag(word_tokens)
+    entities = nltk.ne_chunk(pos_tagged_tokens)
+
+    locations = []
+
+    for entity in entities:
+        if type(entity) is nltk.tree.Tree:
+            if entity.label() == 'GPE' or entity.label() == 'LOCATION' or entity.label() == 'ORGANIZATION':
+                locations.append(' '.join([i[0] for i in entity.leaves()]))
+
+    return ' '.join(locations)
+
+
+def convert_location(location):
+    """Converts string location to latitude and longitude coordinates.
+
+    Args:
+        location (str): Location string
+
+    Returns:
+        tuple[str]: Tuple with address and coordinates (address, latitude, longitude)
+
+    """
+    geocoded_location = google.geocode(location)
+    return (geocoded_location.address, '%.4f' % geocoded_location.latitude, '%.4f' % geocoded_location.longitude)
 
 
 def compute_duration(duration):
@@ -139,22 +188,24 @@ def extract_number(string):
     return int(re.search(r'\d+', string).group(0))
 
 
-def get_weather(date_time):
+def get_weather(location, date_time):
     """Returns a string with the weather at a specific time.
 
     Args:
+        location (tuple[str]): Tuple containing the adress and coordinates of location
         date_time (str): String containing a datetime in ISO 8601 format (2017-10-29T16:12:55)
 
     Returns:
         str: String with weather (formatted for Slack)
 
     """
-    new_url = url + ',%s?units=ca&exclude=%s,%s,%s,%s' % (date_time, 'minutely', 'hourly', 'alerts', 'flags')
+    new_url = url + '%s,%s,%s?units=ca&exclude=%s,%s,%s,%s' % (location[1], location[2], date_time, 'minutely', 'hourly', 'alerts', 'flags')
     response = requests.get(new_url)
     forecast = response.json()
     date_time_object = dateutil.parser.parse(date_time)
 
     query_params = (
+            location[0],
             date_time_object.strftime('%b %d, %Y %H:%M'),
             forecast['currently']['summary'],
             forecast['currently']['apparentTemperature'],
@@ -164,7 +215,7 @@ def get_weather(date_time):
             forecast['daily']['data'][0]['apparentTemperatureMin']
         )
 
-    return '*%s*: %s\nFeels like _%s_ °C\n\n*%s*: %s\nFeels like _%s_ °C (High) and _%s_ °C (Low)' % query_params
+    return '*%s*\n\n*%s*: %s\nFeels like _%s_ °C\n\n*%s*: %s\nFeels like _%s_ °C (High) and _%s_ °C (Low)' % query_params
 
 
 def send_message(message, channel):
