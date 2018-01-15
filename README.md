@@ -1,5 +1,5 @@
 # Charlie
-Charlie is a Slack bot that gets weather updates. It uses the Dark Sky API (free 1,000 calls per day) for retrieving weather forecasts. It uses the Stanford CoreNLP's Temporal Tagger (SUTime) to process time queries. CoreNLP is developed in Java, so a Python port is used here. NLTK is used to for non-temporal NLP. It uses Google's Geocoding API to transform locations into coordinates (free 2,500 calls per day).
+Charlie is a Slack bot that gets weather updates. It uses the Dark Sky API (free 1,000 calls per day) for retrieving weather forecasts. It uses the Stanford CoreNLP's Temporal Tagger (SUTime) to process time queries. CoreNLP is developed in Java, so a Python port is used here. NLTK is used for non-temporal NLP. Charlie uses Google's Geocoding API to transform locations into coordinates (free 2,500 calls per day).
 
 ## Instructions
 Install the packages
